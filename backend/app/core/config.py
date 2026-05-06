@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     cookie_name: str = "athletic_session"
     cookie_secure: bool = False
+    cookie_samesite: str = "lax"
     storage_root: str = "storage"
     adjustment_template_path: str = "templates/Adjustment_of_Aid_Template_2526.xlsx"
     smtp_host: str | None = None

@@ -45,7 +45,7 @@ def login(
         key=settings.cookie_name,
         value=sign_session(user.id),
         httponly=True,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         secure=settings.cookie_secure,
         max_age=60 * 60 * 24 * 7,
     )
