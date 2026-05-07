@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     smtp_from_name: str = "Athletic Scholarship MVP"
     smtp_use_starttls: bool = True
     smtp_use_ssl: bool = False
-    tender_recommended_signatory: str = "Athletic Department Representative"
-    tender_approved_signatory: str = "Financial Aid Representative"
+    tender_recommended_signatory: str = "Henry Davidson"
+    tender_approved_signatory: str = "Korrin Lovette"
 
     model_config = SettingsConfigDict(
         env_file=".env",
