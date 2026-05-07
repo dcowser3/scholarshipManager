@@ -65,6 +65,7 @@ export type RosterRow = {
   source: string | null
   pending_state: string | null
   pending_after_values: Record<string, string> | null
+  pending_source: 'UI' | 'EMAIL' | null
 }
 
 export type ImportRun = {
@@ -106,4 +107,12 @@ export type SubmittedAdjustmentResponse = {
   adjustments_created: number
   artifacts_created: number
   recipient_email: string
+}
+
+export type SportBudgetSummary = {
+  sport_id: number
+  academic_year: string
+  budget_amount: string
+  allocated_amount: string
+  percent_used: string
 }

@@ -25,7 +25,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import resolve_backend_path, settings
-
+from app.models.core import Sport, Term
+from app.models.roster import AidRecord, RosterMembership
+from app.models.submission import Adjustment
+from app.models.user import User
 
 _TENDER_FONT_FAMILY = "Carlito"
 _TENDER_FONTS_REGISTERED = False
@@ -52,10 +55,6 @@ def _register_tender_fonts() -> None:
         boldItalic=f"{_TENDER_FONT_FAMILY}-BoldItalic",
     )
     _TENDER_FONTS_REGISTERED = True
-from app.models.core import Sport, Term
-from app.models.roster import AidRecord, RosterMembership
-from app.models.submission import Adjustment
-from app.models.user import User
 
 LINE_ITEM_FIELDS = [
     "oos_tuition",
@@ -116,7 +115,8 @@ def generate_adjustment_artifacts(
     db: Session,
     submission_id: UUID,
     adjustments: list[Adjustment],
-    submitted_by: User,
+    submitted_by: User | None = None,
+    submitted_by_name: str | None = None,
     comment: str | None,
 ) -> list[GeneratedArtifact]:
     artifacts: list[GeneratedArtifact] = []
@@ -125,6 +125,7 @@ def generate_adjustment_artifacts(
             db=db,
             adjustment=adjustment,
             submitted_by=submitted_by,
+            submitted_by_name=submitted_by_name,
             reason=comment,
         )
         athlete_slug = slugify_filename(context.athlete_name)
@@ -168,7 +169,8 @@ def build_adjustment_document_context(
     *,
     db: Session,
     adjustment: Adjustment,
-    submitted_by: User,
+    submitted_by: User | None = None,
+    submitted_by_name: str | None = None,
     reason: str | None,
 ) -> AdjustmentDocumentContext:
     membership = db.get(RosterMembership, adjustment.membership_id)
@@ -221,7 +223,7 @@ def build_adjustment_document_context(
         exempt=membership.exempt,
         housing=membership.housing,
         submission_date=datetime.now(UTC).date(),
-        submitted_by_name=submitted_by.display_name or submitted_by.email,
+        submitted_by_name=submitted_by_name or _resolve_submitter_name(submitted_by),
         reason=reason,
         current_fall=current_fall,
         current_spring=current_spring,
@@ -230,6 +232,12 @@ def build_adjustment_document_context(
         term_start_date=min(start_dates) if start_dates else None,
         term_end_date=max(end_dates) if end_dates else None,
     )
+
+
+def _resolve_submitter_name(submitted_by: User | None) -> str | None:
+    if submitted_by is None:
+        return None
+    return submitted_by.display_name or submitted_by.email
 
 
 def build_adjustment_workbook(context: AdjustmentDocumentContext, output_path: Path) -> None:
@@ -531,7 +539,10 @@ def build_tender_pdf(
             "provisions and agree to abide by them.",
             body_just,
         ),
-        Paragraph("A summary of applicable rules may be found on the reverse side of this form.", body),
+        Paragraph(
+            "A summary of applicable rules may be found on the reverse side of this form.",
+            body,
+        ),
         Paragraph("Your award includes the following:", body),
         award_table,
         Paragraph("*Dollar amounts are estimated and will be adjusted to actual costs", fine),

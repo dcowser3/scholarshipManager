@@ -16,6 +16,8 @@ class Submission(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sport_id: Mapped[int | None] = mapped_column(ForeignKey("sports.id"))
     submitted_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    source: Mapped[str] = mapped_column(String(16), default="UI", nullable=False)
+    intake_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("email_intake.id"))
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str | None] = mapped_column(String(32))
     kind: Mapped[str | None] = mapped_column(String(32))
@@ -56,3 +58,21 @@ class DocumentArtifact(Base):
     send_status: Mapped[str | None] = mapped_column(String(32))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sent_to: Mapped[str | None] = mapped_column(Text)
+
+
+class EmailIntake(Base):
+    __tablename__ = "email_intake"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sender_email: Mapped[str | None] = mapped_column(Text)
+    inbound_message_id: Mapped[str | None] = mapped_column(Text, unique=True)
+    raw_body: Mapped[str | None] = mapped_column(Text)
+    parsed_payload: Mapped[dict | None] = mapped_column(JSONB)
+    confirmation_message_id: Mapped[str | None] = mapped_column(Text)
+    state: Mapped[str | None] = mapped_column(String(32))
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("submissions.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

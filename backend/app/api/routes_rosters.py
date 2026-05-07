@@ -6,10 +6,16 @@ from app.api.dependencies import get_accessible_sports, require_sport_access, re
 from app.db.session import get_db
 from app.models.core import Athlete, Sport, Term
 from app.models.roster import AidRecord, RosterMembership
-from app.models.submission import Adjustment
+from app.models.submission import Adjustment, Submission
 from app.models.user import User
 from app.schemas.availability import TermAvailabilityResponse
-from app.schemas.roster import RosterRowResponse, SportResponse, TermResponse
+from app.schemas.roster import (
+    RosterRowResponse,
+    SportBudgetSummaryResponse,
+    SportResponse,
+    TermResponse,
+)
+from app.services.budgets import get_sport_budget_summary
 
 router = APIRouter(tags=["rosters"])
 
@@ -124,6 +130,7 @@ def list_roster_rows(
     rows = db.execute(query).all()
     membership_ids = [membership.id for membership, _aid in rows]
     pending_adjustment_map: dict[int, Adjustment] = {}
+    pending_submission_source_map: dict[int, str | None] = {}
     if membership_ids:
         adjustments = db.scalars(
             select(Adjustment)
@@ -133,9 +140,27 @@ def list_roster_rows(
             )
             .order_by(Adjustment.created_at.desc())
         ).all()
+        submission_ids = {
+            adjustment.submission_id
+            for adjustment in adjustments
+            if adjustment.submission_id
+        }
+        submission_map = {}
+        if submission_ids:
+            submission_map = {
+                submission.id: submission
+                for submission in db.scalars(
+                    select(Submission).where(Submission.id.in_(submission_ids))
+                )
+            }
         for adjustment in adjustments:
             if adjustment.membership_id not in pending_adjustment_map:
                 pending_adjustment_map[adjustment.membership_id] = adjustment
+                pending_submission_source_map[adjustment.membership_id] = (
+                    submission_map.get(adjustment.submission_id).source
+                    if adjustment.submission_id in submission_map
+                    else None
+                )
 
     response: list[RosterRowResponse] = []
     for membership, aid in rows:
@@ -175,7 +200,30 @@ def list_roster_rows(
                 pending_after_values=(
                     pending_adjustment.after_values if pending_adjustment else None
                 ),
+                pending_source=pending_submission_source_map.get(membership.id),
             )
         )
 
     return response
+
+
+@router.get("/sport-budgets/summary", response_model=SportBudgetSummaryResponse)
+def get_budget_summary(
+    sport_id: int = Query(...),
+    academic_year: str = Query(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+) -> SportBudgetSummaryResponse:
+    require_sport_access(sport_id, user)
+    summary = get_sport_budget_summary(
+        db,
+        sport_id=sport_id,
+        academic_year=academic_year,
+    )
+    return SportBudgetSummaryResponse(
+        sport_id=summary.sport_id,
+        academic_year=summary.academic_year,
+        budget_amount=summary.budget_amount,
+        allocated_amount=summary.allocated_amount,
+        percent_used=summary.percent_used,
+    )

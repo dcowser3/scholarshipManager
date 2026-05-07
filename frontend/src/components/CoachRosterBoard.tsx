@@ -52,6 +52,7 @@ export function CoachRosterBoard({
         const cohortTheme = getCohortTheme(row.cohort_display)
         const isEditing = editingMembershipId === row.membership_id
         const hasPending = Boolean(row.pending_state)
+        const pendingSourceLabel = row.pending_source === 'EMAIL' ? 'Email' : row.pending_source
         const baselineValues = toAidChangeValuesFromRecord(row.pending_after_values, row)
         const visibleValues = draftValues[row.membership_id] ?? baselineValues
         const changedMetrics = getChangedAidMetrics(baselineValues, visibleValues)
@@ -112,6 +113,7 @@ export function CoachRosterBoard({
                     {row.status}
                   </span>
                   {hasPending ? <span className="pending-pill">Pending</span> : null}
+                  {pendingSourceLabel ? <span className="source-pill">{pendingSourceLabel}</span> : null}
                 </div>
               </div>
 

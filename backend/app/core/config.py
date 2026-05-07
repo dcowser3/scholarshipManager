@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     smtp_from_name: str = "Athletic Scholarship MVP"
     smtp_use_starttls: bool = True
     smtp_use_ssl: bool = False
+    email_poll_enabled: bool = False
+    email_poll_interval_seconds: int = 10
+    email_imap_host: str | None = None
+    email_imap_user: str | None = None
+    email_imap_password: str | None = None
+    email_allowed_senders: str | None = None
+    email_sender_sports: str | None = None
+    email_demo_recipient: str | None = None
+    email_from_address: str | None = None
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-5.4-mini"
     tender_recommended_signatory: str = "Henry Davidson"
     tender_approved_signatory: str = "Korrin Lovette"
 

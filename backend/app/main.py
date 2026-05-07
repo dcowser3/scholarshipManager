@@ -7,8 +7,10 @@ from app.api.routes_imports import router as imports_router
 from app.api.routes_rosters import router as rosters_router
 from app.api.routes_submissions import router as submissions_router
 from app.core.config import settings
+from app.services.email_poller import EmailDemoPoller
 
 app = FastAPI(title=settings.app_name)
+email_demo_poller = EmailDemoPoller()
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,3 +30,14 @@ app.include_router(submissions_router, prefix="/api")
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+def startup() -> None:
+    if settings.email_poll_enabled:
+        email_demo_poller.start()
+
+
+@app.on_event("shutdown")
+def shutdown() -> None:
+    email_demo_poller.stop()

@@ -11,6 +11,7 @@ import {
   useCohortIssues,
   useRoster,
   useRosterAvailability,
+  useSportBudgetSummary,
   useSports,
   useTerms,
 } from '../hooks/usePhaseOneData'
@@ -55,6 +56,8 @@ export function CoachSportPage() {
   const rosterAvailabilityQuery = useRosterAvailability(sport?.id ?? null)
   const rosterQuery = useRoster(sport?.id ?? null, selectedTermId, search)
   const cohortIssuesQuery = useCohortIssues(sport?.id ?? null)
+  const selectedTerm = termsQuery.data?.find((term) => term.id === selectedTermId) ?? null
+  const budgetSummaryQuery = useSportBudgetSummary(sport?.id ?? null, selectedTerm?.academic_year ?? null)
 
   useEffect(() => {
     if (rosterAvailabilityQuery.data?.length) {
@@ -234,6 +237,7 @@ export function CoachSportPage() {
         `Submitted ${result.adjustments_created} adjustment${result.adjustments_created === 1 ? '' : 's'} and emailed ${result.artifacts_created} document${result.artifacts_created === 1 ? '' : 's'} to ${result.recipient_email}.`,
       )
       await queryClient.invalidateQueries({ queryKey: ['roster'] })
+      await queryClient.invalidateQueries({ queryKey: ['sport-budget-summary'] })
     } catch (caught) {
       setSubmissionMessage(caught instanceof Error ? caught.message : 'Unable to submit changes.')
     } finally {
@@ -291,6 +295,28 @@ export function CoachSportPage() {
           ))}
         </div>
       </section>
+
+      {budgetSummaryQuery.data ? (
+        <section className="budget-banner">
+          <strong>
+            Budget{' '}
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 0,
+            }).format(Number(budgetSummaryQuery.data.budget_amount))}
+          </strong>
+          <span>
+            Allocated{' '}
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 0,
+            }).format(Number(budgetSummaryQuery.data.allocated_amount))}{' '}
+            ({Number(budgetSummaryQuery.data.percent_used).toFixed(2)}%)
+          </span>
+        </section>
+      ) : null}
 
       {sport?.id && termsQuery.data ? (
         <CohortIssuesPanel

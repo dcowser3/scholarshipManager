@@ -5,6 +5,7 @@ import type {
   CohortIssue,
   RosterRow,
   Sport,
+  SportBudgetSummary,
   Term,
   TermAvailability,
 } from '../types/api'
@@ -48,5 +49,16 @@ export function useRosterAvailability(sportId: number | null) {
     queryFn: () =>
       apiRequest<TermAvailability[]>(`/roster-availability?sport_id=${sportId}`),
     enabled: Boolean(sportId),
+  })
+}
+
+export function useSportBudgetSummary(sportId: number | null, academicYear: string | null) {
+  return useQuery({
+    queryKey: ['sport-budget-summary', sportId, academicYear],
+    queryFn: () =>
+      apiRequest<SportBudgetSummary>(
+        `/sport-budgets/summary?sport_id=${sportId}&academic_year=${encodeURIComponent(academicYear ?? '')}`,
+      ),
+    enabled: Boolean(sportId && academicYear),
   })
 }

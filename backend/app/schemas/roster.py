@@ -49,3 +49,12 @@ class RosterRowResponse(BaseModel):
     source: str | None
     pending_state: str | None = None
     pending_after_values: dict[str, str] | None = None
+    pending_source: str | None = None
+
+
+class SportBudgetSummaryResponse(BaseModel):
+    sport_id: int
+    academic_year: str
+    budget_amount: Decimal
+    allocated_amount: Decimal
+    percent_used: Decimal

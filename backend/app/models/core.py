@@ -1,8 +1,20 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -63,3 +75,16 @@ class ConfigEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class SportBudget(Base):
+    __tablename__ = "sport_budgets"
+    __table_args__ = (
+        UniqueConstraint("sport_id", "academic_year", name="uq_sport_budgets_sport_year"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sport_id: Mapped[int] = mapped_column(ForeignKey("sports.id"), nullable=False)
+    academic_year: Mapped[str] = mapped_column(String(16), nullable=False)
+    budget_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
