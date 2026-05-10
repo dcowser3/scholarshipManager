@@ -205,6 +205,44 @@ def _build_plan_for_new_request(
     )
 
 
+def _resolve_change_term(
+    *,
+    raw_term: Any,
+    athlete_id: str,
+    roster_memberships: list[RosterMembership],
+) -> tuple[str | None, bool]:
+    normalized_term = str(raw_term or "").upper()
+    if normalized_term in {"FALL", "SPRING"}:
+        return normalized_term, False
+    if normalized_term:
+        return None, False
+
+    athlete_terms: dict[str, Term] = {}
+    for membership in roster_memberships:
+        if membership.athlete_id != athlete_id or membership.term is None:
+            continue
+        semester = str(membership.term.semester or "").upper()
+        if semester in {"FALL", "SPRING"} and semester not in athlete_terms:
+            athlete_terms[semester] = membership.term
+
+    if not athlete_terms:
+        return None, False
+
+    today = datetime.now(UTC).date()
+    for semester, term in athlete_terms.items():
+        if term.start_date and term.end_date and term.start_date <= today <= term.end_date:
+            return semester, True
+
+    if len(athlete_terms) == 1:
+        return next(iter(athlete_terms)), True
+
+    preferred = "SPRING" if today.month < 8 else "FALL"
+    if preferred in athlete_terms:
+        return preferred, True
+
+    return next(iter(sorted(athlete_terms))), True
+
+
 def _build_plan_from_parsed_result(
     db: Session,
     *,
@@ -283,7 +321,11 @@ def _build_plan_from_parsed_result(
             )
             continue
 
-        term = str(raw_change.get("term") or "").upper()
+        term, defaulted_term = _resolve_change_term(
+            raw_term=raw_change.get("term"),
+            athlete_id=str(athlete_id),
+            roster_memberships=roster_memberships,
+        )
         field = str(raw_change.get("field") or "").strip()
         operation = str(raw_change.get("operation") or "").upper()
         amount_text = raw_change.get("amount")
@@ -337,10 +379,13 @@ def _build_plan_from_parsed_result(
         elif membership.id not in explicit_total_memberships:
             total_deltas[membership.id] = total_deltas.get(membership.id, Decimal("0.00")) + delta
 
-        note = None
+        note_parts: list[str] = []
         pending_adjustment = pending_by_membership.get(membership.id)
         if pending_adjustment and _field_has_pending_value(pending_adjustment, field):
-            note = "already pending"
+            note_parts.append("already pending")
+        if defaulted_term:
+            note_parts.append("defaulted to current semester")
+        note = "; ".join(note_parts) or None
 
         rows.append(
             ConfirmationTableRow(
@@ -397,7 +442,7 @@ def _build_plan_from_parsed_result(
         athletic_aid_overrides=overrides,
     )
 
-    summary = str(parsed.get("summary") or "").strip() or (
+    summary = _build_confirmation_summary(rows) or str(parsed.get("summary") or "").strip() or (
         intake.raw_body.strip() if intake.raw_body else "Requested scholarship adjustment."
     )
     if not changes:
@@ -766,6 +811,24 @@ def _format_confirmation_table(rows: list[ConfirmationTableRow]) -> str:
             f"{row.note or ''}"
         )
     return "\n".join(formatted_rows)
+
+
+def _build_confirmation_summary(rows: list[ConfirmationTableRow]) -> str:
+    if not rows:
+        return ""
+
+    parts: list[str] = []
+    for row in rows:
+        field_label = FIELD_LABELS.get(row.field, row.field).lower()
+        sentence = (
+            f"{row.athlete_name}: {row.term.title()} {field_label} "
+            f"{_format_currency(row.before)} -> {_format_currency(row.after)} "
+            f"({_format_signed_currency(row.delta)})"
+        )
+        if row.note:
+            sentence += f" [{row.note}]"
+        parts.append(sentence)
+    return "Parsed adjustments: " + "; ".join(parts) + "."
 
 
 def _build_generated_docs_subject(athlete_names: list[str]) -> str:

@@ -40,6 +40,12 @@ cd backend
 uv run python -m app.scripts.import_csv "/Users/deriancowser/Downloads/Athletic Aid Amounts (1).csv" --user-email admin@utoledo.edu
 ```
 
+## Email Demo
+
+For email-demo-only testing, you do not need the frontend running. Start Postgres, then run the backend locally from `backend/` so it picks up `backend/.env`.
+
+The email demo poller starts when `EMAIL_POLL_ENABLED=true`. A focused runbook and troubleshooting notes live in [docs/email-demo-troubleshooting.md](/Users/deriancowser/Documents/New%20project/docs/email-demo-troubleshooting.md:1).
+
 ## Default Accounts
 
 - `admin@utoledo.edu` / `ChangeMe123!`

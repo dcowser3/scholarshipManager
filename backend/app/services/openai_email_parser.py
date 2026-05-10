@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from decimal import Decimal
 from urllib import error, request
 
@@ -90,6 +91,7 @@ def _build_user_prompt(
     email_body: str,
     roster_memberships: list[RosterMembership],
 ) -> str:
+    default_semester = _infer_default_semester(roster_memberships)
     roster = [
         {
             "rocket_id": membership.athlete_id,
@@ -102,6 +104,9 @@ def _build_user_prompt(
         "Canonical field names: athletic_aid_total, oos_tuition, tuition, general_fee, "
         "misc_fee, room, board, books, personal_expenses, oos_resource.\n"
         "Semesters must be FALL or SPRING.\n"
+        f"Today's date: {datetime.now(UTC).date().isoformat()}.\n"
+        "If the email does not specify a semester, default to the current semester"
+        f"{f' ({default_semester})' if default_semester else ''}.\n"
         "Operation must be SET when the email means 'to $X'.\n"
         "Operation must be DELTA when the email means 'by $X', 'increase', 'decrease', "
         "'add', or 'remove'. Use negative amounts for decreases.\n\n"
@@ -109,6 +114,36 @@ def _build_user_prompt(
         f"Roster JSON: {json.dumps(roster)}\n"
         f"Email body:\n{email_body}\n"
     )
+
+
+def _infer_default_semester(roster_memberships: list[RosterMembership]) -> str | None:
+    semesters: dict[str, object] = {}
+    for membership in roster_memberships:
+        term = membership.term
+        if term is None:
+            continue
+        semester = str(term.semester or "").upper()
+        if semester in {"FALL", "SPRING"} and semester not in semesters:
+            semesters[semester] = term
+
+    if not semesters:
+        return None
+
+    today = datetime.now(UTC).date()
+    for semester, term in semesters.items():
+        start_date = getattr(term, "start_date", None)
+        end_date = getattr(term, "end_date", None)
+        if start_date and end_date and start_date <= today <= end_date:
+            return semester
+
+    if len(semesters) == 1:
+        return next(iter(semesters))
+
+    preferred = "SPRING" if today.month < 8 else "FALL"
+    if preferred in semesters:
+        return preferred
+
+    return next(iter(sorted(semesters)))
 
 
 def _response_schema() -> dict:
